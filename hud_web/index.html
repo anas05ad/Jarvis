@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #19d3ff;
+    --ice: #c9f6ff;
+    --deep: #0a6f94;
+    --line: rgba(25, 211, 255, .28);
+    --amber: #ffc45c;
+    --red: #ff5c6c;
+    --bg: #03070b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--cyan);
+    font-family: Rajdhani, "Segoe UI", sans-serif; }
+  body { background: radial-gradient(ellipse at 50% 52%, #0c2232 0%, #050c13 45%, #020407 80%); }
+  #grid { position: fixed; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(25,211,255,.035) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(25,211,255,.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%); }
+  #scan { position: fixed; inset: 0; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); }
+  canvas#cv { position: fixed; inset: 0; }
+
+  /* top bar */
+  #top { position: fixed; top: 0; left: 0; right: 0; height: 48px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,.15)); z-index: 2; }
+  #logo { font-family: Orbitron; font-weight: 800; letter-spacing: .5em; font-size: 15px; color: var(--ice);
+    text-shadow: 0 0 12px var(--cyan); }
+  #topDate { font-family: Orbitron; font-size: 13px; letter-spacing: .25em; color: var(--ice); }
+  #link { display: flex; align-items: center; gap: 10px; font-size: 14px; letter-spacing: .08em; }
+  #dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red); }
+  #dot.on { background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
+
+  /* panels */
+  .panel { position: fixed; padding: 16px 18px; border: 1px solid var(--line);
+    background: linear-gradient(160deg, rgba(10,40,58,.55), rgba(3,10,16,.55));
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    z-index: 2; }
+  .panel::before { content: ""; position: absolute; left: 0; top: 0; width: 40px; height: 2px; background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan); }
+  .title { font-family: Orbitron; font-size: 11px; font-weight: 600; letter-spacing: .3em; color: var(--ice);
+    margin-bottom: 12px; opacity: .85; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px;
+    color: rgba(201,246,255,.75); }
+  .row b { font-family: Orbitron; font-weight: 400; font-size: 13px; color: var(--cyan); }
+  .bar { height: 5px; margin: 5px 0 12px; background: rgba(25,211,255,.1); position: relative; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan); transition: width .8s ease; }
+  .bar i.hot { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+
+  #left { left: 28px; top: 78px; width: 270px; }
+  #right { right: 28px; top: 78px; width: 290px; }
+  #actions { left: 28px; bottom: 28px; width: 340px; height: 210px; display: flex; flex-direction: column; }
+  #log { right: 28px; bottom: 28px; width: 400px; height: 290px; display: flex; flex-direction: column; }
+  .scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: var(--deep) transparent; }
+
+  #spark { width: 100%; height: 46px; margin-top: 6px; display: block; }
+
+  #wTemp { font-family: Orbitron; font-size: 48px; font-weight: 400; color: var(--ice);
+    text-shadow: 0 0 16px rgba(25,211,255,.6); line-height: 1; }
+  #wDesc { font-size: 18px; margin: 6px 0 12px; color: var(--cyan); }
+  #wDays { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;
+    border-top: 1px solid var(--line); padding-top: 12px; }
+  #wDays div { text-align: center; font-size: 13px; color: rgba(201,246,255,.7); }
+  #wDays b { display: block; font-family: Orbitron; font-weight: 400; color: var(--cyan); font-size: 12px; margin-top: 3px; }
+
+  .ln { font-size: 15px; line-height: 1.35; margin-bottom: 8px; color: rgba(201,246,255,.85); }
+  .ln .w { font-family: Orbitron; font-size: 10px; letter-spacing: .2em; margin-right: 8px; color: var(--cyan); }
+  .ln.u .w { color: var(--amber); }
+  .ln .tx { unicode-bidi: plaintext; }
+  .act { font-size: 14px; margin-bottom: 7px; color: rgba(201,246,255,.8); display: flex; gap: 8px; }
+  .act time { font-family: Orbitron; font-size: 10px; color: var(--deep); padding-top: 3px; min-width: 52px; }
+  .act .n { color: var(--cyan); font-weight: 600; }
+  .act.done .n::after { content: "  ✓"; color: var(--cyan); }
+  .empty { font-size: 14px; color: rgba(201,246,255,.4); }
+
+  /* center readout */
+  #center { position: fixed; left: 50%; top: calc(50% + 12px); transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none; z-index: 1; }
+  #state { font-family: Orbitron; font-size: 11px; letter-spacing: .45em; color: var(--ice); opacity: .85;
+    margin-bottom: 6px; transition: color .3s; }
+  #state.speak { color: var(--cyan); }
+  #state.hear { color: var(--amber); }
+  #state.busy { color: var(--amber); animation: blink 0.8s steps(2) infinite; }
+  #clock { font-family: Orbitron; font-size: clamp(30px, 4vw, 54px); font-weight: 600; color: var(--ice);
+    text-shadow: 0 0 22px rgba(25,211,255,.8); letter-spacing: .06em; }
+  #date { font-family: Orbitron; font-size: 11px; letter-spacing: .4em; margin-top: 6px; color: var(--cyan); opacity: .8; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* command bar */
+  #dock { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 3;
+    display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(560px, 90vw); }
+  #chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { font: 500 14px Rajdhani, sans-serif; color: var(--ice); background: rgba(25,211,255,.06);
+    border: 1px solid var(--line); padding: 5px 12px; cursor: pointer; transition: background .2s, border-color .2s; }
+  .chip:hover { background: rgba(25,211,255,.16); border-color: var(--cyan); }
+  #cmd { display: flex; width: 100%; gap: 8px; }
+  #txt { flex: 1; font: 500 16px Rajdhani, sans-serif; color: var(--ice); background: rgba(3,12,18,.8);
+    border: 1px solid var(--line); padding: 10px 14px; outline: none; unicode-bidi: plaintext; }
+  #txt:focus { border-color: var(--cyan); box-shadow: 0 0 14px rgba(25,211,255,.25); }
+  #txt::placeholder { color: rgba(201,246,255,.35); }
+  .btn { font: 600 12px Orbitron, sans-serif; letter-spacing: .2em; color: var(--bg); background: var(--cyan);
+    border: none; padding: 0 16px; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--cyan); border: 1px solid var(--line); }
+  .btn.ghost.off { color: var(--red); border-color: var(--red); }
+  .btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; }
+
+  #flash { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 var(--amber);
+    transition: box-shadow .5s; z-index: 5; }
+  #flash.on { box-shadow: inset 0 0 60px 4px rgba(255,196,92,.35); transition: none; }
+
+  @media (max-width: 1250px) { #left, #right { display: none; } }
+  @media (max-width: 900px)  { #actions, #log { display: none; } }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<canvas id="cv"></canvas>
+<div id="scan"></div>
+<div id="flash"></div>
+
+<header id="top">
+  <div id="logo">J.A.R.V.I.S.</div>
+  <div id="topDate">--</div>
+  <div id="link"><span id="dot"></span><span id="linkTxt">Connecting to JARVIS…</span></div>
+</header>
+
+<section id="left" class="panel">
+  <div class="title">SYSTEM</div>
+  <div class="row"><span>Processor</span><b id="cpuT">--</b></div><div class="bar"><i id="cpuB"></i></div>
+  <div class="row"><span>Memory</span><b id="ramT">--</b></div><div class="bar"><i id="ramB"></i></div>
+  <div class="row"><span>Main drive</span><b id="diskT">--</b></div><div class="bar"><i id="diskB"></i></div>
+  <div class="row"><span>Power</span><b id="batT">--</b></div><div class="bar"><i id="batB"></i></div>
+  <div class="title" style="margin-top:16px">NETWORK</div>
+  <div class="row"><span>Download</span><b id="down">--</b></div>
+  <div class="row"><span>Upload</span><b id="up">--</b></div>
+  <canvas id="spark" width="460" height="92"></canvas>
+  <div class="row" style="margin-top:8px"><span>Uptime</span><b id="uptime">--</b></div>
+</section>
+
+<section id="right" class="panel">
+  <div class="title">WEATHER</div>
+  <div id="wTemp">--°</div>
+  <div id="wDesc">Waiting for your location</div>
+  <div class="row"><span>Feels like</span><b id="wFeel">--</b></div>
+  <div class="row"><span>Humidity</span><b id="wHum">--</b></div>
+  <div class="row"><span>Wind</span><b id="wWind">--</b></div>
+  <div id="wDays"></div>
+</section>
+
+<section id="actions" class="panel">
+  <div class="title">ACTIONS</div>
+  <div class="scroll" id="actBody"><div class="empty">Actions JARVIS takes on your PC show up here.</div></div>
+</section>
+
+<section id="log" class="panel">
+  <div class="title">CONVERSATION</div>
+  <div class="scroll" id="logBody"><div class="empty">Start talking. Captions appear here.</div></div>
+</section>
+
+<div id="center">
+  <div id="state">STANDBY</div>
+  <div id="clock">--:--</div>
+  <div id="date">--</div>
+</div>
+
+<div id="dock">
+  <div id="chips"></div>
+  <div id="cmd">
+    <input id="txt" placeholder="Type a command for JARVIS…" dir="auto" autocomplete="off">
+    <button class="btn" id="send">SEND</button>
+    <button class="btn ghost" id="mute" aria-pressed="false">MIC ON</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2, N = 48;
+const C = a => `rgba(25,211,255,${a})`, Y = a => `rgba(255,196,92,${a})`, I = a => `rgba(220,250,255,${a})`;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- live data ---------- */
+let outB = Array(N).fill(0), micB = Array(N).fill(0), tOut = Array(N).fill(0), tMic = Array(N).fill(0);
+let outL = 0, micL = 0, tOutL = 0, tMicL = 0, lastOut = 0, lastMic = 0, busy = 0;
+let stats = { cpu: 0, ram: 0, disk: 0, bat: null }, cfg = {}, weatherStarted = false;
+const netHist = [];
+let ws;
+
+function connect() {
+  ws = new WebSocket('ws://localhost:8771');
+  ws.onopen = () => { $('dot').classList.add('on'); $('linkTxt').textContent = 'JARVIS online'; };
+  ws.onclose = () => { $('dot').classList.remove('on'); $('linkTxt').textContent = 'JARVIS offline, reconnecting…'; setTimeout(connect, 1500); };
+  ws.onmessage = e => handle(JSON.parse(e.data));
+}
+connect();
+
+function handle(m) {
+  const now = performance.now();
+  switch (m.t) {
+    case 'out': tOutL = m.l; tOut = m.b; lastOut = now; break;
+    case 'mic': tMicL = m.l; tMic = m.b; lastMic = now; break;
+    case 'cap': caption(m.who, m.text); break;
+    case 'tool': busy++; action(m.name, m.args); break;
+    case 'tool_done': busy = Math.max(0, busy - 1); actionDone(); break;
+    case 'interrupted': $('flash').classList.add('on'); setTimeout(() => $('flash').classList.remove('on'), 60); break;
+    case 'status': $('linkTxt').textContent = m.online ? `JARVIS online  ·  ${m.model}` : 'Reconnecting to JARVIS…'; break;
+    case 'muted': setMute(m.on); break;
+    case 'stats': showStats(m); break;
+    case 'config': cfg = m; startWeather(); break;
+    case 'call': action('phone call', { info: m.text }); if (m.status === 'ended') actionDone(); break;
+  }
+}
+
+/* ---------- canvas ---------- */
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W, H, cx, cy, R;
+function resize() {
+  const d = devicePixelRatio || 1; W = innerWidth; H = innerHeight;
+  cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+addEventListener('resize', resize); resize();
+
+function arc(r, a0, a1, w, style) {
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.lineWidth = w; ctx.strokeStyle = style; ctx.stroke();
+}
+function ray(a, r1, r2, w, style) {
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+  ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+  ctx.lineWidth = w; ctx.strokeStyle = style; ctx.stroke();
+}
+
+let shownState = '';
+function setState(txt, cls) {
+  if (txt === shownState) return;
+  shownState = txt; $('state').textContent = txt; $('state').className = cls;
+}
+
+function gauge(x, y, r, value, label, s) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = 'rgba(3,12,18,.85)'; ctx.fill();
+  arc2(x, y, r, 0, TAU, 1, C(.35));
+  const v = value == null ? 0 : value / 100;
+  arc2(x, y, r - 5, -Math.PI / 2, -Math.PI / 2 + TAU * v, 4, v > .85 ? Y(.9) : C(.9));
+  arc2(x, y, r + 6, s * .6, s * .6 + 1.2, 1, C(.5));
+  ctx.fillStyle = I(.9); ctx.font = '600 13px Orbitron'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(value == null ? '--' : Math.round(value) + '%', x, y - 2);
+  ctx.fillStyle = C(.75); ctx.font = '500 9px Orbitron'; ctx.fillText(label, x, y + 13);
+}
+function arc2(x, y, r, a0, a1, w, style) {
+  ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.lineWidth = w; ctx.strokeStyle = style; ctx.stroke();
+}
+
+function frame(now) {
+  const s = reduce ? 0 : now / 1000;
+
+  // fade audio when no fresh data arrives
+  if (now - lastOut > 160) { tOutL *= .8; for (let i = 0; i < N; i++) tOut[i] *= .8; }
+  if (now - lastMic > 160) { tMicL *= .8; for (let i = 0; i < N; i++) tMic[i] *= .8; }
+  outL += (tOutL - outL) * .3; micL += (tMicL - micL) * .3;
+  for (let i = 0; i < N; i++) { outB[i] += (tOut[i] - outB[i]) * .35; micB[i] += (tMic[i] - micB[i]) * .35; }
+
+  const amp = Math.min(1, outL * 7), mamp = Math.min(1, micL * 7);
+  const speaking = amp > .08, hearing = !speaking && mamp > .12;
+  if (busy) setState('WORKING ON IT', 'busy');
+  else if (speaking) setState('SPEAKING', 'speak');
+  else if (hearing) setState('LISTENING', 'hear');
+  else setState(ws && ws.readyState === 1 ? 'STANDBY' : 'OFFLINE', '');
+
+  cx = W / 2; cy = H / 2 + 12; R = Math.min(W * .5, H) * .4;
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'butt';
+
+  // outer tick ring
+  for (let k = 0; k < 180; k++) {
+    const a = k / 180 * TAU + s * .035, big = k % 15 === 0, mid = k % 5 === 0;
+    ray(a, R * 1.03, R * 1.03 + (big ? 16 : mid ? 9 : 4), big ? 2 : 1, C(big ? .75 : .28));
+  }
+  arc(R * .995, 0, TAU, 1, C(.22));
+
+  // segmented band
+  const seg = 36, hot = Math.floor(s * 5) % seg;
+  for (let i = 0; i < seg; i++) {
+    const a0 = i / seg * TAU - s * .07;
+    const lit = i === hot || i === (hot + 18) % seg || (i * 7) % 11 === 0;
+    arc(R * .94, a0, a0 + TAU / seg * .78, 12, C(lit ? .5 + amp * .4 : .1));
+  }
+
+  // drifting partial arcs
+  [[.865, .35, 1.6, 3, .6], [.825, -.22, .8, 2, .45], [.89, .6, .35, 7, .5], [.795, .12, 2.4, 1, .35]]
+    .forEach(([rr, sp, len, w, al], j) => {
+      const a = s * sp + j * 1.7;
+      arc(R * rr, a, a + len, w, C(al));
+      arc(R * rr, a + Math.PI, a + Math.PI + len * .4, w, C(al * .6));
+    });
+
+  // voice ring: cyan when JARVIS talks, amber when you talk
+  const src = speaking ? outB : micB, col = speaking ? C : hearing ? Y : C;
+  const gain = speaking ? 1 : hearing ? .8 : 0, r0 = R * .56, bars = N * 2;
+  for (let i = 0; i < bars; i++) {
+    const bi = i < N ? i : bars - 1 - i, v = src[bi] * gain;
+    const idle = .5 + .5 * Math.sin(s * 2 + i * .4);
+    ray(i / bars * TAU - Math.PI / 2, r0, r0 + 3 + idle * 3 + v * R * .27, 3, col(.3 + v * .7));
+  }
+
+  // chevron reactor ring (spins faster while speaking)
+  ctx.save();
+  ctx.shadowColor = C(.9); ctx.shadowBlur = 8 + amp * 26;
+  const c1 = R * .405, c2 = R * .49, cn = 44, rot = s * (.22 + amp * 1.3);
+  for (let i = 0; i < cn; i++) {
+    const a = i / cn * TAU + rot, w = TAU / cn * .45, sk = .06;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * c1, cy + Math.sin(a) * c1);
+    ctx.lineTo(cx + Math.cos(a + w) * c1, cy + Math.sin(a + w) * c1);
+    ctx.lineTo(cx + Math.cos(a + w + sk) * c2, cy + Math.sin(a + w + sk) * c2);
+    ctx.lineTo(cx + Math.cos(a + sk) * c2, cy + Math.sin(a + sk) * c2);
+    ctx.closePath();
+    const pulse = .5 + .5 * Math.sin(s * 3 + i * .5);
+    ctx.fillStyle = I(.18 + pulse * (.25 + amp * .55)); ctx.fill();
+  }
+  ctx.shadowBlur = 24 + amp * 70;
+  arc(R * .39, 0, TAU, 3 + amp * 7, C(.55 + amp * .45));
+  arc(R * .505, 0, TAU, 2, C(.45 + amp * .45));
+  ctx.restore();
+
+  // core glow
+  const cr = R * .37 * (1 + amp * .07);
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+  g.addColorStop(0, `rgba(25,211,255,${.08 + amp * .3 + mamp * .05})`);
+  g.addColorStop(.75, 'rgba(8,48,72,.35)');
+  g.addColorStop(1, 'rgba(3,12,20,.92)');
+  ctx.beginPath(); ctx.arc(cx, cy, cr, 0, TAU); ctx.fillStyle = g; ctx.fill();
+
+  // radar sweep + dotted ring
+  if (ctx.createConicGradient) {
+    const cg = ctx.createConicGradient(s * 1.1, cx, cy);
+    cg.addColorStop(0, C(0)); cg.addColorStop(.86, C(0)); cg.addColorStop(1, C(.22 + amp * .2));
+    ctx.beginPath(); ctx.arc(cx, cy, R * .32, 0, TAU); ctx.fillStyle = cg; ctx.fill();
+  }
+  for (let i = 0; i < 60; i++) {
+    const a = i / 60 * TAU - s * .15, big = i % 5 === 0;
+    ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * .32, cy + Math.sin(a) * R * .32, big ? 2 : 1, 0, TAU);
+    ctx.fillStyle = C(big ? .7 : .25); ctx.fill();
+  }
+
+  // four satellite gauges
+  const d = R * 1.2 * .7071, gr = Math.max(26, R * .085);
+  gauge(cx - d, cy - d, gr, stats.cpu, 'CPU', s);
+  gauge(cx + d, cy - d, gr, stats.ram, 'RAM', -s);
+  gauge(cx - d, cy + d, gr, stats.disk, 'DISK', -s);
+  gauge(cx + d, cy + d, gr, stats.bat, 'POWER', s);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- clock ---------- */
+function tick() {
+  const d = new Date();
+  $('clock').textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const ds = d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase();
+  $('date').textContent = ds;
+  $('topDate').textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+}
+setInterval(tick, 1000); tick();
+
+/* ---------- stats ---------- */
+function bar(id, p) { const el = $(id); el.style.width = Math.max(0, Math.min(100, p || 0)) + '%'; el.classList.toggle('hot', p > 85); }
+function rate(k) { return k > 1024 ? (k / 1024).toFixed(1) + ' MB/s' : k.toFixed(0) + ' KB/s'; }
+function showStats(m) {
+  stats = m;
+  $('cpuT').textContent = Math.round(m.cpu) + '%'; bar('cpuB', m.cpu);
+  $('ramT').textContent = `${m.ram_used} / ${m.ram_total} GB`; bar('ramB', m.ram);
+  $('diskT').textContent = `${m.disk_free} GB free`; bar('diskB', m.disk);
+  if (m.bat == null) { $('batT').textContent = 'Plugged in'; bar('batB', 100); }
+  else { $('batT').textContent = m.bat + '%' + (m.plug ? ' · charging' : ''); bar('batB', m.bat); }
+  $('down').textContent = rate(m.down); $('up').textContent = rate(m.up);
+  const up = Math.floor(Date.now() / 1000 - m.boot);
+  $('uptime').textContent = `${Math.floor(up / 86400)}d ${Math.floor(up % 86400 / 3600)}h ${Math.floor(up % 3600 / 60)}m`;
+  netHist.push(m.down); if (netHist.length > 60) netHist.shift();
+  drawSpark();
+}
+function drawSpark() {
+  const c = $('spark'), x = c.getContext('2d'), w = c.width, h = c.height;
+  x.clearRect(0, 0, w, h);
+  const max = Math.max(50, ...netHist);
+  x.beginPath();
+  netHist.forEach((v, i) => { const px = i / 59 * w, py = h - v / max * (h - 6) - 3; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.strokeStyle = '#19d3ff'; x.lineWidth = 2; x.stroke();
+  x.lineTo((netHist.length - 1) / 59 * w, h); x.lineTo(0, h); x.closePath();
+  x.fillStyle = 'rgba(25,211,255,.12)'; x.fill();
+}
+
+/* ---------- conversation + actions ---------- */
+let lastWho = null, lastLine = null;
+function clearEmpty(box) { const e = box.querySelector('.empty'); if (e) e.remove(); }
+function caption(who, text) {
+  const box = $('logBody'); clearEmpty(box);
+  if (who !== lastWho || !lastLine) {
+    lastLine = document.createElement('div');
+    lastLine.className = 'ln ' + (who === 'JARVIS' ? 'j' : 'u');
+    const w = document.createElement('span'); w.className = 'w'; w.textContent = who === 'JARVIS' ? 'JARVIS' : who === 'You' ? 'YOU' : who.toUpperCase();
+    const t = document.createElement('span'); t.className = 'tx'; t.dir = 'auto';
+    lastLine.append(w, t); box.append(lastLine); lastWho = who;
+    while (box.children.length > 40) box.firstChild.remove();
+  }
+  lastLine.querySelector('.tx').textContent += text;
+  box.scrollTop = box.scrollHeight;
+}
+let pendingActs = [];
+function action(name, args) {
+  const box = $('actBody'); clearEmpty(box);
+  const el = document.createElement('div'); el.className = 'act';
+  const t = document.createElement('time'); t.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const d = document.createElement('div');
+  const n = document.createElement('span'); n.className = 'n'; n.textContent = name.replace(/_/g, ' ');
+  const a = document.createElement('div'); a.dir = 'auto';
+  a.textContent = Object.values(args || {}).map(v => String(v)).join(' · ').slice(0, 90);
+  d.append(n, a); el.append(t, d); box.append(el); pendingActs.push(el);
+  while (box.children.length > 30) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+function actionDone() { const el = pendingActs.shift(); if (el) el.classList.add('done'); }
+
+/* ---------- commands ---------- */
+function sendText(text) {
+  text = text.trim();
+  if (!text || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ t: 'text', text }));
+  $('txt').value = '';
+}
+$('send').onclick = () => sendText($('txt').value);
+$('txt').addEventListener('keydown', e => { if (e.key === 'Enter') sendText($('txt').value); });
+['Give me a system report', 'Open YouTube', 'What should I wear today?', 'Look at my screen']
+  .forEach(label => {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = label;
+    b.onclick = () => sendText(label); $('chips').append(b);
+  });
+let muted = false;
+function setMute(on) {
+  muted = on; const b = $('mute');
+  b.textContent = on ? 'MIC OFF' : 'MIC ON'; b.classList.toggle('off', on); b.setAttribute('aria-pressed', on);
+}
+$('mute').onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ t: 'mute', on: !muted }));
+
+/* ---------- weather (Open-Meteo, free, no key) ---------- */
+const WMO = c => c === 0 ? 'Clear sky' : c <= 2 ? 'Partly cloudy' : c === 3 ? 'Overcast' : c <= 48 ? 'Fog'
+  : c <= 57 ? 'Drizzle' : c <= 67 ? 'Rain' : c <= 77 ? 'Snow' : c <= 82 ? 'Rain showers'
+  : c <= 86 ? 'Snow showers' : 'Thunderstorms';
+function startWeather() {
+  if (weatherStarted) return; weatherStarted = true;
+  const go = (lat, lon) => { weather(lat, lon); setInterval(() => weather(lat, lon), 15 * 60 * 1000); };
+  if (cfg.lat && cfg.lon) return go(cfg.lat, cfg.lon);
+  if (!navigator.geolocation) { $('wDesc').textContent = 'Set HUD_LAT and HUD_LON in .env to show weather'; return; }
+  navigator.geolocation.getCurrentPosition(p => go(p.coords.latitude, p.coords.longitude),
+    () => { $('wDesc').textContent = 'Location blocked. Set HUD_LAT and HUD_LON in .env'; });
+}
+async function weather(lat, lon) {
+  const f = cfg.unit === 'fahrenheit', unit = f ? '°F' : '°C', wu = f ? 'mph' : 'km/h';
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m`
+    + `&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=4`
+    + `&temperature_unit=${f ? 'fahrenheit' : 'celsius'}&wind_speed_unit=${f ? 'mph' : 'kmh'}`;
+  try {
+    const d = await (await fetch(url)).json(), c = d.current;
+    $('wTemp').textContent = Math.round(c.temperature_2m) + unit;
+    $('wDesc').textContent = WMO(c.weather_code);
+    $('wFeel').textContent = Math.round(c.apparent_temperature) + unit;
+    $('wHum').textContent = c.relative_humidity_2m + '%';
+    $('wWind').textContent = Math.round(c.wind_speed_10m) + ' ' + wu;
+    const days = $('wDays'); days.innerHTML = '';
+    for (let i = 1; i <= 3; i++) {
+      const el = document.createElement('div');
+      el.textContent = new Date(d.daily.time[i] + 'T12:00').toLocaleDateString('en-US', { weekday: 'short' });
+      const b = document.createElement('b');
+      b.textContent = `${Math.round(d.daily.temperature_2m_max[i])}° / ${Math.round(d.daily.temperature_2m_min[i])}°`;
+      const s = document.createElement('div'); s.textContent = WMO(d.daily.weather_code[i]);
+      el.append(b, s); days.append(el);
+    }
+  } catch (e) { $('wDesc').textContent = 'Weather unavailable. Check your internet connection.'; }
+}
+</script>
+</body>
+</html>

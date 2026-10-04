@@ -1,0 +1,15 @@
+openai
+faster-whisper
+pvporcupine
+pvrecorder
+edge-tts
+pygame-ce
+pyautogui
+pillow
+numpy
+python-dotenv
+google-genai
+sounddevice
+psutil
+pyperclip
+pygetwindow
